@@ -7,10 +7,12 @@ import {
   MantineProvider,
 } from '@mantine/core';
 import { theme } from '../theme';
+import { AppStateProvider } from './context/AppStateContext';
+import { AppFrame } from './components/AppFrame/AppFrame';
 
 export const metadata = {
-  title: 'Blog Summariser',
-  description: 'An blog summariser app built for AIAugust App a Day Challenge',
+  title: 'Webpage Summariser',
+  description: 'A webpage summariser app built for AIAugust App a Day Challenge',
 };
 
 export default function RootLayout({ children }: { children: any }) {
@@ -25,7 +27,11 @@ export default function RootLayout({ children }: { children: any }) {
         />
       </head>
       <body>
-        <MantineProvider theme={theme}>{children}</MantineProvider>
+        <MantineProvider theme={theme}>
+          <AppStateProvider>
+            <AppFrame>{children}</AppFrame>
+          </AppStateProvider>
+        </MantineProvider>
       </body>
     </html>
   );
