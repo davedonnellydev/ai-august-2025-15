@@ -1,0 +1,152 @@
+---
+description: UI Implementation Plan for Webpage Summariser
+globs:
+alwaysApply: false
+---
+## UI Implementation Plan — Webpage Summariser
+
+This document records the step-by-step plan to update the app UI and supporting architecture to match the UX described in `@app-ux.mdc`. It also records approved deviations and the rationale behind them for future contributors.
+
+### Scope
+- Implement an AppShell with header, left sidebar history, and footer counter.
+- Persist parsed pages and summaries in `localStorage`.
+- Introduce a `ViewResults` experience separate from `ArticleParser`.
+- Respect rate-limit semantics defined by the UX (no decrement when generating new mode for already-stored content; decrement on new summary or refresh of saved summaries).
+- Ensure Mantine UI usage, accessibility (WCAG 2 AA+), and modern UX.
+
+### Approved deviations (by product owner)
+1) Use URLSearchParams (e.g., `?url=...`) to control which view is active and enable deep-linking/reload resilience.
+2) Use `react-markdown` to render summaries safely with a limited allowed element set, improving readability.
+3) Split the client rate limiter into explicit methods: `canStartRequest()` (check only) and `recordRequest()` (increment), with `checkLimit()` retained as a wrapper for backwards compatibility.
+
+Rationales: URL-based state supports shareability and resilience; Markdown rendering improves comprehension; limiter split matches UX semantics precisely and clarifies intent.
+
+### Architecture updates
+- Add Mantine `AppShell` in `app/layout.tsx` with:
+  - Header: app title “Webpage Summariser” (navigates to root, shows `ArticleParser`).
+  - Navbar (left): list of previously summarised pages (from storage) that navigates to `ViewResults` for that URL.
+  - Footer: displays remaining request count (listens for rate-limit changes via context/event).
+
+- Introduce a lightweight React context `AppStateContext` to manage:
+  - `currentUrl` and setter.
+  - `notifyRateLimitChanged()` to re-render footer counter.
+
+### Data model (localStorage)
+Storage key: `summaries_v1`
+
+```ts
+// app/lib/types.ts
+export type SummaryMode =
+  | 'tldr'
+  | 'plain-english'
+  | 'key-takeaways'
+  | 'structured-outline'
+  | 'structured-summary'
+  | 'faqs';
+
+export type ModeSummary = { text: string; updatedAt: number };
+
+export type StoredArticle = {
+  url: string;
+  title?: string;
+  author?: string;
+  domain?: string;
+  lead_image_url?: string | null;
+  content: string; // sanitized HTML or plain text from parser
+  createdAt: number;
+  updatedAt: number;
+  summaries: Partial<Record<SummaryMode, ModeSummary>>;
+};
+```
+
+Helpers (in `app/lib/storage/summaries.ts`):
+- `loadAll(): StoredArticle[]`
+- `findByUrl(url: string): StoredArticle | undefined`
+- `upsertArticle(article: StoredArticle): void`
+- `setSummary(url: string, mode: SummaryMode, text: string): void`
+- `listSummarised(): Array<Pick<StoredArticle, 'url' | 'title' | 'domain' | 'updatedAt'>>`
+- `sanitizeUrl(url: string): string | null` (basic validation and normalization)
+
+### Shared summary instructions
+Move instructions to `app/lib/summary.ts` for reuse:
+
+```ts
+export const SummaryModeInstructions: Record<SummaryMode, string> = {
+  tldr: 'Write a 2-3 sentence abstract ...',
+  'plain-english': 'Rewrite for a general audience ...',
+  'key-takeaways': 'Return 5-10 bullets ...',
+  'structured-outline': 'Produce a hierarchical outline ...',
+  'structured-summary': 'Produce a hierarchical outline with summaries ...',
+  faqs: 'Derive 5-8 likely reader questions ...',
+};
+```
+
+### Rate limiting semantics
+- Add to `ClientRateLimiter`:
+  - `canStartRequest(): boolean` — returns whether a new request is allowed without recording.
+  - `recordRequest(): void` — records a request occurrence.
+  - `checkLimit(): boolean` — legacy wrapper that calls both in order.
+
+- Apply rules:
+  - New parse+summary from `ArticleParser` decrements (use can+record).
+  - Generating a new summary mode for an already stored article does NOT decrement (skip both calls).
+  - “Refresh summaries” for a stored article decrements exactly once per refresh action (use can+record before performing all updates).
+
+### Routing/state
+- Default view shows `ArticleParser` when no `?url` param is present.
+- When `?url=...` is set and found in storage, show `ViewResults` for that URL.
+- Header title and sidebar links update `URLSearchParams` and context.
+
+### Components
+1) `ArticleParser` updates
+   - Add collapsed “Instructions” (default collapsed) using Mantine `Accordion` or `Spoiler`.
+   - Display instruction text inline next to SummaryMode select for the selected mode.
+   - On submit:
+     - If URL exists in storage: navigate to `ViewResults` (no network calls, no decrement).
+     - Else: validate URL, call `/api/parse`, persist article, call `/api/openai/responses` using selected mode, persist summary, then navigate to `ViewResults`. Decrement limiter once if allowed.
+   - Handle loading and error states accessibly.
+
+2) `ViewResults` (new: `components/ViewResults/ViewResults.tsx`)
+   - Info section: `title`, `url`, `author`, `domain`, `lead_image_url` (with alt text and fallbacks).
+   - Summary section:
+     - Mode select showing all modes; indicate saved modes (e.g., icon or badge).
+     - If mode saved: render saved summary via `react-markdown`.
+     - If not saved: show “Generate summary” button; call `/api/openai/responses` using stored `content`, persist under selected mode; no rate-limit decrement.
+   - Actions:
+     - “Refresh summaries”: re-parse URL, update article fields, re-generate summaries for already-saved modes only; decrement limiter once.
+     - “New URL”: clear `?url` param to return to `ArticleParser`.
+
+3) Sidebar (left navbar)
+   - Populate from `listSummarised()` sorted by `updatedAt` desc.
+   - Each item: show title or hostname, plus domain; clicking sets `?url`.
+
+### Accessibility & UX
+- Use Mantine components with proper `label`, `aria-*`, and focus management.
+- Ensure color contrast; respect prefers-color-scheme via Mantine theme.
+- Provide alt text for images; mark decorative elements `aria-hidden`.
+- Use semantic headings for sections (Info, Summary).
+
+### Markdown rendering
+- Use `react-markdown` with a constrained set of elements and no raw HTML to render summaries.
+
+### Testing
+- Extend `components/ArticleParser/ArticleParser.test.tsx`:
+  - Branch existing vs new URL behavior, instruction visibility, error handling.
+  - Rate-limit decrement on new summary only.
+- Add tests for `ViewResults`:
+  - Mode switching, generate new mode without decrement, refresh performs one decrement.
+
+### Implementation order (suggested)
+1) Shared types, instructions, and storage utilities.
+2) AppShell with header/navbar/footer + context + URL param wiring.
+3) `ArticleParser` UX and storage integration.
+4) `ViewResults` with markdown rendering and actions.
+5) Sidebar integration and polish.
+6) Tests and accessibility validation.
+
+### Notes for future contributors
+- Keep the storage schema versioned (`summaries_v1`) to allow migrations.
+- Treat rate-limit semantics as product requirements; do not refactor to “per-mode” decrementing.
+- Prefer URLSearchParams over in-memory-only view state for shareability.
+- When adding new summary modes, update types, instructions, and tests in lockstep.
+
