@@ -136,7 +136,7 @@ export const SummaryModeInstructions: Record<SummaryMode, string> = {
 - Add tests for `ViewResults`:
   - Mode switching, generate new mode without decrement, refresh performs one decrement.
 
-### Implementation order (suggested)
+### Implementation order
 1) Shared types, instructions, and storage utilities.
 2) AppShell with header/navbar/footer + context + URL param wiring.
 3) `ArticleParser` UX and storage integration.
