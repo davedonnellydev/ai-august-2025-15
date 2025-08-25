@@ -22,5 +22,3 @@ export type StoredArticle = {
   updatedAt: number;
   summaries: Partial<Record<SummaryMode, ModeSummary>>;
 };
-
-

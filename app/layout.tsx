@@ -8,11 +8,12 @@ import {
 } from '@mantine/core';
 import { theme } from '../theme';
 import { AppStateProvider } from './context/AppStateContext';
-import { AppFrame } from './components/AppFrame/AppFrame';
+import { AppFrame } from '@/components/AppFrame/AppFrame';
 
 export const metadata = {
-  title: 'Webpage Summariser',
-  description: 'A webpage summariser app built for AIAugust App a Day Challenge',
+  title: 'Blog Summariser',
+  description:
+    'A blog/webpage summariser app built for AIAugust App a Day Challenge',
 };
 
 export default function RootLayout({ children }: { children: any }) {
