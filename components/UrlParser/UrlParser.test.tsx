@@ -12,28 +12,22 @@ jest.mock('../../app/lib/utils/api-helpers', () => ({
 // Mock fetch
 global.fetch = jest.fn();
 
-describe('Welcome component', () => {
+describe('UrlParser component', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  it('renders the welcome title', () => {
-    render(<UrlParser />);
-    expect(screen.getByText(/Welcome to your/)).toBeInTheDocument();
-    expect(screen.getByText('Starter')).toBeInTheDocument();
-  });
-
   it('renders input field and buttons', () => {
     render(<UrlParser />);
-    expect(screen.getByLabelText('Ask a Question')).toBeInTheDocument();
-    expect(screen.getByText('Ask Question')).toBeInTheDocument();
+    expect(screen.getByLabelText('Enter a URL')).toBeInTheDocument();
+    expect(screen.getByText('Summarise')).toBeInTheDocument();
     expect(screen.getByText('Reset')).toBeInTheDocument();
   });
 
   it('displays remaining requests count', () => {
     render(<UrlParser />);
     expect(
-      screen.getByText(/You have \d+ questions remaining/)
+      screen.getByText(/You have \d+ article summaries remaining/)
     ).toBeInTheDocument();
   });
 
@@ -41,7 +35,7 @@ describe('Welcome component', () => {
     const user = userEvent.setup();
     render(<UrlParser />);
 
-    const input = screen.getByLabelText('Ask a Question');
+    const input = screen.getByLabelText('Enter a URL');
     await user.type(input, 'Hello world');
 
     expect(input).toHaveValue('Hello world');
@@ -51,11 +45,11 @@ describe('Welcome component', () => {
     const user = userEvent.setup();
     render(<UrlParser />);
 
-    const submitButton = screen.getByText('Ask Question');
+    const submitButton = screen.getByText('Summarise');
     await user.click(submitButton);
 
     expect(
-      screen.getByText('Error: Please enter some text to translate')
+      screen.getByText('Error: Please enter a url of an article to summarise.')
     ).toBeInTheDocument();
   });
 
@@ -63,7 +57,7 @@ describe('Welcome component', () => {
     const user = userEvent.setup();
     render(<UrlParser />);
 
-    const input = screen.getByLabelText('Ask a Question');
+    const input = screen.getByLabelText('Enter a URL');
     const resetButton = screen.getByText('Reset');
 
     await user.type(input, 'Test input');

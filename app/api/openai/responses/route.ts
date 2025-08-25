@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { MODEL } from '@/app/config/constants';
-import { InputValidator, ServerRateLimiter } from '@/app/lib/utils/api-helpers';
+import { ServerRateLimiter } from '@/app/lib/utils/api-helpers';
 
 export async function POST(request: NextRequest) {
   try {
@@ -70,14 +70,13 @@ export async function POST(request: NextRequest) {
         break;
     }
 
-    const userInput:string = `TASK:
+    const userInput: string = `TASK:
     ${summaryInstructions}
     
     CONTENT:
     ${input}`;
 
-    const instructions: string =
-      `You are a precise summarizer. You will ONLY use facts present in the provided CONTENT (Markdown from a single web page). 
+    const instructions: string = `You are a precise summarizer. You will ONLY use facts present in the provided CONTENT (Markdown from a single web page). 
         Rules:
         - Do not browse, guess, or invent facts; if something isn't stated, write “Not specified”.
         - Ignore boilerplate (cookie notices, nav, footers, unrelated promos).

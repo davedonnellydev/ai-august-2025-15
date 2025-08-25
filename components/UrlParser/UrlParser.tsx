@@ -1,15 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Button, Text, TextInput, Title } from '@mantine/core';
+import { Button, Text, TextInput } from '@mantine/core';
 import { ClientRateLimiter } from '@/app/lib/utils/api-helpers';
 
-
 export function UrlParser() {
-  const [input, setInput] = useState('');
+  const [_input, setInput] = useState('');
   const [url, setUrl] = useState('');
   const [parsedWebsite, setParsedWebsite] = useState(null);
-  const [summaryMode, setSummaryMode] = useState('tldr');
+  const [summaryMode, _setSummaryMode] = useState('tldr');
   const [response, setResponse] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -51,8 +50,7 @@ export function UrlParser() {
       setError(error instanceof Error ? error.message : 'Parser failed');
       return '';
     }
-  }
-  
+  };
 
   const handleRequest = async () => {
     if (!url.trim()) {
@@ -85,7 +83,7 @@ export function UrlParser() {
         },
         body: JSON.stringify({
           input: parsedContent,
-          summaryMode
+          summaryMode,
         }),
       });
 
@@ -110,6 +108,8 @@ export function UrlParser() {
 
   const handleReset = () => {
     setInput('');
+    setUrl('');
+    setParsedWebsite(null);
     setResponse('');
     setError('');
   };
@@ -122,7 +122,7 @@ export function UrlParser() {
           onChange={(event) => setUrl(event.currentTarget.value)}
           size="md"
           radius="md"
-          label="Enter a url"
+          label="Enter a URL"
           placeholder="https://en.wikipedia.org/wiki/Singin%27_in_the_Rain"
         />
 
@@ -152,7 +152,7 @@ export function UrlParser() {
       </div>
 
       <Text c="dimmed" ta="center" size="sm" maw={580} mx="auto" mt="xl">
-        You have {remainingRequests} questions remaining.
+        You have {remainingRequests} article summaries remaining.
       </Text>
     </>
   );

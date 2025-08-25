@@ -6,7 +6,10 @@ export async function POST(request: NextRequest) {
     const { url } = await request.json();
 
     if (typeof url !== 'string' || url.trim().length === 0) {
-      return NextResponse.json({ error: 'Missing or invalid url' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Missing or invalid url' },
+        { status: 400 }
+      );
     }
 
     // Postlight parser returns the parsed article object or throws on error
