@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { input, summaryMode } = await request.json();
+    const { input, summaryInstructions } = await request.json();
 
     // Environment validation
     const apiKey = process.env.OPENAI_API_KEY;
@@ -55,21 +55,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    let summaryInstructions: string;
-    switch (summaryMode) {
-      case 'tldr':
-        summaryInstructions =
-          'Write a 2-3 sentence abstract capturing the single central claim + most consequential implication. No lists.';
-        break;
-      case 'Executive Brief':
-        summaryInstructions =
-          "Write 120-180 words. Then list 3-5 'Key points' as bullets. Make it decision-oriented (why it matters, risks, next steps if applicable).";
-        break;
-      default:
-        summaryInstructions = 'Write a concise summary of the content.';
-        break;
-    }
-
     const userInput: string = `TASK:
     ${summaryInstructions}
     
@@ -100,7 +85,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       response: response.output_text || 'Response recieved',
       originalInput: input,
-      summaryMode,
+      summaryInstructions,
       remainingRequests: ServerRateLimiter.getRemaining(ip),
     });
   } catch (error) {
