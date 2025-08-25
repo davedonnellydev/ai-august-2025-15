@@ -1,11 +1,51 @@
 'use client';
 
 import React from 'react';
-import { Badge, Box, Group, Image, Paper, Stack, Text, Title } from '@mantine/core';
-import { findByUrl } from '@/app/lib/storage/summaries';
+import {
+  Badge,
+  Box,
+  Button,
+  Group,
+  Image,
+  Paper,
+  Select,
+  Stack,
+  Text,
+  Title,
+} from '@mantine/core';
+import ReactMarkdown from 'react-markdown';
+import { SummaryMode } from '@/app/lib/types';
+import { SUMMARY_MODES, SummaryModeInstructions } from '@/app/lib/summary';
+import { findByUrl, setArticleParsedData, setSummary } from '@/app/lib/storage/summaries';
+import { useAppState } from '@/app/context/AppStateContext';
+import { ClientRateLimiter } from '@/app/lib/utils/api-helpers';
 
 export function ViewResults({ url }: { url: string }) {
-  const article = findByUrl(url);
+  const { setUrlAndSync, refreshRemainingRequests } = useAppState();
+  const [currentUrl] = React.useState<string>(url);
+  const [loadingGenerate, setLoadingGenerate] = React.useState(false);
+  const [loadingRefresh, setLoadingRefresh] = React.useState(false);
+  const [error, setError] = React.useState<string>('');
+  const [selectedMode, setSelectedMode] = React.useState<SummaryMode>('tldr');
+  const [tick, setTick] = React.useState<number>(0); // force re-read from storage
+
+  const article = findByUrl(currentUrl);
+
+  const savedModes = React.useMemo<Set<SummaryMode>>(() => {
+    const s = new Set<SummaryMode>();
+    if (article?.summaries) {
+      Object.keys(article.summaries).forEach((k) => s.add(k as SummaryMode));
+    }
+    return s;
+  }, [article?.summaries, tick]);
+
+  React.useEffect(() => {
+    // Default to a saved mode if available
+    if (savedModes.size > 0) {
+      const first = [...savedModes][0];
+      setSelectedMode(first);
+    }
+  }, [tick]);
 
   if (!article) {
     return (
@@ -14,6 +54,87 @@ export function ViewResults({ url }: { url: string }) {
       </Paper>
     );
   }
+
+  const generateForMode = async () => {
+    if (!article) return;
+    setError('');
+    setLoadingGenerate(true);
+    try {
+      const instructions = SummaryModeInstructions[selectedMode];
+      const response = await fetch('/api/openai/responses', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ input: article.content, summaryInstructions: instructions }),
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'API call failed');
+      }
+      const result = await response.json();
+      setSummary(article.url, selectedMode, result.response);
+      setTick((n) => n + 1);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to generate summary');
+    } finally {
+      setLoadingGenerate(false);
+    }
+  };
+
+  const refreshSummaries = async () => {
+    if (!ClientRateLimiter.checkLimit()) {
+      setError('Rate limit exceeded. Please try again later.');
+      refreshRemainingRequests();
+      return;
+    }
+    setError('');
+    setLoadingRefresh(true);
+    try {
+      // Re-parse
+      const res = await fetch('/api/parse', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: article.url }),
+      });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Parser failed');
+      }
+      const { article: parsed } = await res.json();
+      const content: string = parsed?.content ?? '';
+      setArticleParsedData(article.url, {
+        title: parsed?.title,
+        author: parsed?.author,
+        domain: parsed?.domain || new URL(article.url).hostname,
+        lead_image_url: parsed?.lead_image_url ?? null,
+        content,
+      });
+
+      // Re-generate only for already-saved modes
+      for (const mode of savedModes) {
+        const instructions = SummaryModeInstructions[mode];
+        const resp = await fetch('/api/openai/responses', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ input: content, summaryInstructions: instructions }),
+        });
+        if (!resp.ok) {
+          const errorData = await resp.json();
+          throw new Error(errorData.error || 'API call failed');
+        }
+        const result = await resp.json();
+        setSummary(article.url, mode, result.response);
+      }
+
+      refreshRemainingRequests();
+      setTick((n) => n + 1);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to refresh summaries');
+    } finally {
+      setLoadingRefresh(false);
+    }
+  };
+
+  const currentSummary = article.summaries?.[selectedMode]?.text ?? '';
 
   return (
     <Stack gap="md">
@@ -47,11 +168,51 @@ export function ViewResults({ url }: { url: string }) {
       </Paper>
 
       <Paper p="md" withBorder>
-        <Group justify="space-between" mb="sm">
-          <Title order={4}>Summary</Title>
-          <Badge variant="light">Wiring in progress</Badge>
+        <Group justify="space-between" mb="sm" align="flex-end">
+          <div style={{ minWidth: 280 }}>
+            <Select
+              label="Summary mode"
+              placeholder="Select mode"
+              value={selectedMode}
+              onChange={(value) => value && setSelectedMode(value as SummaryMode)}
+              data={SUMMARY_MODES.map((m) => ({
+                value: m,
+                label: `${m === 'tldr' ? 'TL;DR' : m.replace('-', ' ')}` + (savedModes.has(m) ? ' ✓' : ''),
+              }))}
+            />
+          </div>
+          <Group gap="xs">
+            <Button variant="light" color="gray" onClick={() => setUrlAndSync(null)}>
+              New URL
+            </Button>
+            <Button color="cyan" onClick={refreshSummaries} loading={loadingRefresh}>
+              Refresh summaries
+            </Button>
+          </Group>
         </Group>
-        <Text c="dimmed">Further implementation will follow in the next step.</Text>
+
+        <Text size="sm" c="dimmed" mb="sm">
+          {SummaryModeInstructions[selectedMode]}
+        </Text>
+
+        {error && (
+          <Text c="red" size="sm" mb="sm">
+            Error: {error}
+          </Text>
+        )}
+
+        {currentSummary ? (
+          <ReactMarkdown>{currentSummary}</ReactMarkdown>
+        ) : (
+          <>
+            <Text c="dimmed" size="sm" mb="sm">
+              No summary saved for this mode yet.
+            </Text>
+            <Button onClick={generateForMode} loading={loadingGenerate}>
+              Generate summary
+            </Button>
+          </>
+        )}
       </Paper>
     </Stack>
   );
