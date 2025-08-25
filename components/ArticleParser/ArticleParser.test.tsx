@@ -1,5 +1,5 @@
 import { render, screen, userEvent } from '@/test-utils';
-import { UrlParser } from './UrlParser';
+import { ArticleParser } from './ArticleParser';
 
 // Mock the ClientRateLimiter
 jest.mock('../../app/lib/utils/api-helpers', () => ({
@@ -12,20 +12,20 @@ jest.mock('../../app/lib/utils/api-helpers', () => ({
 // Mock fetch
 global.fetch = jest.fn();
 
-describe('UrlParser component', () => {
+describe('ArticleParser component', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
   it('renders input field and buttons', () => {
-    render(<UrlParser />);
+    render(<ArticleParser />);
     expect(screen.getByLabelText('Enter a URL')).toBeInTheDocument();
     expect(screen.getByText('Summarise')).toBeInTheDocument();
     expect(screen.getByText('Reset')).toBeInTheDocument();
   });
 
   it('displays remaining requests count', () => {
-    render(<UrlParser />);
+    render(<ArticleParser />);
     expect(
       screen.getByText(/You have \d+ article summaries remaining/)
     ).toBeInTheDocument();
@@ -33,7 +33,7 @@ describe('UrlParser component', () => {
 
   it('allows user to type in input field', async () => {
     const user = userEvent.setup();
-    render(<UrlParser />);
+    render(<ArticleParser />);
 
     const input = screen.getByLabelText('Enter a URL');
     await user.type(input, 'Hello world');
@@ -43,7 +43,7 @@ describe('UrlParser component', () => {
 
   it('shows error when trying to submit empty input', async () => {
     const user = userEvent.setup();
-    render(<UrlParser />);
+    render(<ArticleParser />);
 
     const submitButton = screen.getByText('Summarise');
     await user.click(submitButton);
@@ -55,7 +55,7 @@ describe('UrlParser component', () => {
 
   it('resets form when reset button is clicked', async () => {
     const user = userEvent.setup();
-    render(<UrlParser />);
+    render(<ArticleParser />);
 
     const input = screen.getByLabelText('Enter a URL');
     const resetButton = screen.getByText('Reset');
