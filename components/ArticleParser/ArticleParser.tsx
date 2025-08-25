@@ -115,7 +115,6 @@ export function ArticleParser() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        console.log(errorData);
         throw new Error(errorData.error || 'API call failed');
       }
 
@@ -160,7 +159,9 @@ export function ArticleParser() {
         onChange={(event) => {
           const v = event.currentTarget.value;
           setUrl(v);
-          if (debounceRef.current) window.clearTimeout(debounceRef.current);
+          if (debounceRef.current) {
+            window.clearTimeout(debounceRef.current);
+          }
           debounceRef.current = window.setTimeout(() => {
             const normalized = sanitizeUrl(v);
             if (normalized && findByUrl(normalized)) {

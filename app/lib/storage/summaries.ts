@@ -17,7 +17,9 @@ function emitChange(): void {
 }
 
 function safeParse<T>(value: string | null, fallback: T): T {
-  if (!value) return fallback;
+  if (!value) {
+    return fallback;
+  }
   try {
     return JSON.parse(value) as T;
   } catch {
@@ -26,20 +28,26 @@ function safeParse<T>(value: string | null, fallback: T): T {
 }
 
 function saveAll(articles: StoredArticle[]): void {
-  if (!hasStorage()) return;
+  if (!hasStorage()) {
+    return;
+  }
   localStorage.setItem(STORAGE_KEY, JSON.stringify(articles));
   emitChange();
 }
 
 export function loadAll(): StoredArticle[] {
-  if (!hasStorage()) return [];
+  if (!hasStorage()) {
+    return [];
+  }
   return safeParse<StoredArticle[]>(localStorage.getItem(STORAGE_KEY), []);
 }
 
 export function sanitizeUrl(input: string): string | null {
   try {
     const u = new URL(input.trim());
-    if (!u.protocol.startsWith('http')) return null;
+    if (!u.protocol.startsWith('http')) {
+      return null;
+    }
     u.hash = '';
     return u.toString();
   } catch {
@@ -49,7 +57,9 @@ export function sanitizeUrl(input: string): string | null {
 
 export function findByUrl(url: string): StoredArticle | undefined {
   const normalized = sanitizeUrl(url);
-  if (!normalized) return undefined;
+  if (!normalized) {
+    return undefined;
+  }
   return loadAll().find((a) => a.url === normalized);
 }
 
@@ -66,9 +76,13 @@ export function upsertArticle(article: StoredArticle): void {
 
 export function ensureArticle(url: string): StoredArticle {
   const normalized = sanitizeUrl(url);
-  if (!normalized) throw new Error('Invalid URL');
+  if (!normalized) {
+    throw new Error('Invalid URL');
+  }
   const existing = findByUrl(normalized);
-  if (existing) return existing;
+  if (existing) {
+    return existing;
+  }
   const now = Date.now();
   const fresh: StoredArticle = {
     url: normalized,
@@ -95,7 +109,9 @@ export function setArticleParsedData(
   >
 ): StoredArticle {
   const normalized = sanitizeUrl(url);
-  if (!normalized) throw new Error('Invalid URL');
+  if (!normalized) {
+    throw new Error('Invalid URL');
+  }
   const current = ensureArticle(normalized);
   const updated: StoredArticle = {
     ...current,
@@ -116,7 +132,9 @@ export function setSummary(
   text: string
 ): StoredArticle {
   const normalized = sanitizeUrl(url);
-  if (!normalized) throw new Error('Invalid URL');
+  if (!normalized) {
+    throw new Error('Invalid URL');
+  }
   const article = ensureArticle(normalized);
   const summaries = { ...article.summaries };
   const summary: ModeSummary = { text, updatedAt: Date.now() };
@@ -145,15 +163,21 @@ export function listSummarised(): Array<
 }
 
 export function clearAll(): void {
-  if (!hasStorage()) return;
+  if (!hasStorage()) {
+    return;
+  }
   localStorage.removeItem(STORAGE_KEY);
   emitChange();
 }
 
 export function deleteByUrl(url: string): void {
-  if (!hasStorage()) return;
+  if (!hasStorage()) {
+    return;
+  }
   const normalized = sanitizeUrl(url);
-  if (!normalized) return;
+  if (!normalized) {
+    return;
+  }
   const articles = loadAll().filter((a) => a.url !== normalized);
   saveAll(articles);
 }

@@ -1,6 +1,6 @@
 import '@mantine/core/styles.css';
 
-import React from 'react';
+import React, { Suspense } from 'react';
 import {
   ColorSchemeScript,
   mantineHtmlProps,
@@ -29,9 +29,11 @@ export default function RootLayout({ children }: { children: any }) {
       </head>
       <body>
         <MantineProvider theme={theme}>
-          <AppStateProvider>
-            <AppFrame>{children}</AppFrame>
-          </AppStateProvider>
+          <Suspense fallback={null}>
+            <AppStateProvider>
+              <AppFrame>{children}</AppFrame>
+            </AppStateProvider>
+          </Suspense>
         </MantineProvider>
       </body>
     </html>

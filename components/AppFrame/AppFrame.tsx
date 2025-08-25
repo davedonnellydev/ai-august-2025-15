@@ -58,16 +58,9 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
             />
             <Title
               order={3}
+              component="button"
               onClick={() => setUrlAndSync(null)}
-              style={{ cursor: 'pointer' }}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  setUrlAndSync(null);
-                }
-              }}
+              style={{ cursor: 'pointer', background: 'none', border: 'none' }}
               aria-label="Go to home"
             >
               Blog Summariser
@@ -96,7 +89,10 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
               variant="subtle"
               color="red"
               onClick={() => {
-                if (window.confirm('Clear all saved summaries?')) clearAll();
+                // eslint-disable-next-line no-alert
+                if (window.confirm('Clear all saved summaries?')) {
+                  clearAll();
+                }
               }}
               aria-label="Clear saved summaries"
             >
@@ -131,9 +127,12 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
                     color="red"
                     aria-label={`Delete ${it.title || it.url}`}
                     onClick={() => {
+                      // eslint-disable-next-line no-alert
                       if (window.confirm('Delete this saved page?')) {
                         deleteByUrl(it.url);
-                        if (currentUrl === it.url) setUrlAndSync(null);
+                        if (currentUrl === it.url) {
+                          setUrlAndSync(null);
+                        }
                       }
                     }}
                   >
@@ -169,5 +168,3 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
     </AppShell>
   );
 }
-
-
