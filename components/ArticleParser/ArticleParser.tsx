@@ -1,44 +1,22 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { Button, Text, TextInput, Select } from '@mantine/core';
+import { useRef, useState } from 'react';
+import { Accordion, Button, Group, Paper, Select, Stack, Text, TextInput } from '@mantine/core';
 import { ClientRateLimiter } from '@/app/lib/utils/api-helpers';
+import { SummaryMode } from '@/app/lib/types';
+import { SummaryModeInstructions } from '@/app/lib/summary';
+import { findByUrl, sanitizeUrl, setArticleParsedData, setSummary } from '@/app/lib/storage/summaries';
+import { useAppState } from '@/app/context/AppStateContext';
 
-type SummaryModes =
-  | 'tldr'
-  | 'plain-english'
-  | 'key-takeaways'
-  | 'structured-outline'
-  | 'structured-summary'
-  | 'faqs';
-
-const SummaryModeInstructions: Record<SummaryModes, string> = {
-  tldr: 'Write a 2-3 sentence abstract capturing the single central claim + most consequential implication. No lists. Output format: plain Markdown paragraph.',
-  'plain-english':
-    'Rewrite for a general audience at ~Grade 8 readability. Keep all concrete facts, avoid jargon. Output format: plain Markdown paragraph.',
-  'key-takeaways':
-    'Return 5-10 bullets. Each bullet ≤20 words. One fact per bullet. Preserve any figures and dates. Output format: Markdown bullet list',
-  'structured-outline':
-    "Produce a hierarchical outline mirroring the document's headings (H1-H3 max). Use nested Markdown lists. No commentary beyond the outline. Output format: nested Markdown list.",
-  'structured-summary':
-    "Produce a hierarchical outline mirroring the document's headings (H1-H3 max). Use Markdown headings. Underneath each heading, provide a brief summary of that section. Output format: nested Markdown headings and paragraphs.",
-  faqs: 'Derive 5-8 likely reader questions and answer them with 1-2 sentences each. Answers must be supported by CONTENT. Output format: Markdown headings and paragraphs.',
-};
+ 
 
 export function ArticleParser() {
-  const [_input, setInput] = useState('');
+  const { setUrlAndSync, refreshRemainingRequests } = useAppState();
   const [url, setUrl] = useState('');
-  const [parsedWebsite, setParsedWebsite] = useState(null);
-  const [summaryMode, setSummaryMode] = useState<SummaryModes>('tldr');
-  const [response, setResponse] = useState('');
+  const [summaryMode, setSummaryMode] = useState<SummaryMode>('tldr');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [remainingRequests, setRemainingRequests] = useState(0);
-
-  // Update remaining requests on component mount and after translations
-  useEffect(() => {
-    setRemainingRequests(ClientRateLimiter.getRemainingRequests());
-  }, []);
+  const debounceRef = useRef<number | null>(null);
 
   const parseUrl = async (): Promise<string> => {
     try {
@@ -58,9 +36,14 @@ export function ArticleParser() {
       }
 
       const { article } = await res.json();
-      setParsedWebsite(article);
       const content: string = article?.content ?? '';
-      setInput(content);
+      setArticleParsedData(url, {
+        title: article?.title,
+        author: article?.author,
+        domain: article?.domain || new URL(url).hostname,
+        lead_image_url: article?.lead_image_url ?? null,
+        content,
+      });
       return content;
     } catch (error) {
       console.error('Parser error:', error);
@@ -75,10 +58,22 @@ export function ArticleParser() {
       return;
     }
 
-    // Check rate limit before proceeding
+    const normalized = sanitizeUrl(url);
+    if (!normalized) {
+      setError('Please enter a valid URL starting with http or https.');
+      return;
+    }
+
+    // If URL already exists in storage, navigate to results
+    if (findByUrl(normalized)) {
+      setUrlAndSync(normalized);
+      return;
+    }
+
+    // New summary request decrements rate limit
     if (!ClientRateLimiter.checkLimit()) {
       setError('Rate limit exceeded. Please try again later.');
-      setRemainingRequests(ClientRateLimiter.getRemainingRequests());
+      refreshRemainingRequests();
       return;
     }
 
@@ -113,10 +108,9 @@ export function ArticleParser() {
       }
 
       const result = await response.json();
-      setResponse(result.response);
-
-      // Update remaining requests after successful translation
-      setRemainingRequests(ClientRateLimiter.getRemainingRequests());
+      setSummary(normalized, summaryMode, result.response);
+      refreshRemainingRequests();
+      setUrlAndSync(normalized);
     } catch (err) {
       console.error('API error:', err);
       setError(err instanceof Error ? err.message : 'API failed');
@@ -126,44 +120,76 @@ export function ArticleParser() {
   };
 
   const handleReset = () => {
-    setInput('');
     setUrl('');
     setSummaryMode('tldr');
-    setParsedWebsite(null);
-    setResponse('');
     setError('');
   };
 
   return (
-    <>
-      <div style={{ maxWidth: 600, margin: '20px auto', padding: '20px' }}>
-        <TextInput
-          value={url}
-          onChange={(event) => setUrl(event.currentTarget.value)}
-          size="md"
-          radius="md"
-          label="Enter a URL"
-          placeholder="https://en.wikipedia.org/wiki/Singin%27_in_the_Rain"
-        />
+    <Stack gap="md" style={{ maxWidth: 720, margin: '20px auto', padding: '20px' }}>
+      <Accordion defaultValue={undefined} variant="separated">
+        <Accordion.Item value="instructions">
+          <Accordion.Control>Instructions</Accordion.Control>
+          <Accordion.Panel>
+            <Text size="sm" c="dimmed">
+              Paste a webpage URL, choose a summary mode, and click Summarise. If the URL was summarised before, you'll be taken directly to the saved results.
+            </Text>
+          </Accordion.Panel>
+        </Accordion.Item>
+      </Accordion>
 
-        <Select
-          label="Summary mode"
-          placeholder="Select mode"
-          value={summaryMode}
-          onChange={(value) => value && setSummaryMode(value as SummaryModes)}
-          data={[
-            { value: 'tldr', label: 'TL;DR' },
-            { value: 'plain-english', label: 'Plain English' },
-            { value: 'key-takeaways', label: 'Key Takeaways' },
-            { value: 'structured-outline', label: 'Structured Outline' },
-            { value: 'structured-summary', label: 'Structured Summary' },
-            { value: 'faqs', label: 'FAQs' },
-          ]}
-          size="md"
-          radius="md"
-          mt="md"
-        />
+      <TextInput
+        value={url}
+        onChange={(event) => {
+          const v = event.currentTarget.value;
+          setUrl(v);
+          if (debounceRef.current) window.clearTimeout(debounceRef.current);
+          debounceRef.current = window.setTimeout(() => {
+            const normalized = sanitizeUrl(v);
+            if (normalized && findByUrl(normalized)) {
+              setUrlAndSync(normalized);
+            }
+          }, 500);
+        }}
+        onBlur={() => {
+          const normalized = sanitizeUrl(url);
+          if (normalized && findByUrl(normalized)) {
+            setUrlAndSync(normalized);
+          }
+        }}
+        size="md"
+        radius="md"
+        label="Enter a URL"
+        placeholder="https://en.wikipedia.org/wiki/Singin%27_in_the_Rain"
+      />
 
+      <Group align="flex-start" wrap="nowrap">
+        <div style={{ minWidth: 260, flex: '0 0 260px' }}>
+          <Select
+            label="Summary mode"
+            placeholder="Select mode"
+            value={summaryMode}
+            onChange={(value) => value && setSummaryMode(value as SummaryMode)}
+            data={[
+              { value: 'tldr', label: 'TL;DR' },
+              { value: 'plain-english', label: 'Plain English' },
+              { value: 'key-takeaways', label: 'Key Takeaways' },
+              { value: 'structured-outline', label: 'Structured Outline' },
+              { value: 'structured-summary', label: 'Structured Summary' },
+              { value: 'faqs', label: 'FAQs' },
+            ]}
+            size="md"
+            radius="md"
+          />
+        </div>
+        <Paper p="sm" withBorder style={{ flex: 1 }}>
+          <Text size="sm" c="dimmed">
+            {SummaryModeInstructions[summaryMode]}
+          </Text>
+        </Paper>
+      </Group>
+
+      <Group>
         <Button
           variant="filled"
           color="cyan"
@@ -175,23 +201,13 @@ export function ArticleParser() {
         <Button variant="light" color="cyan" onClick={() => handleReset()}>
           Reset
         </Button>
+      </Group>
 
-        {error && (
-          <Text c="red" ta="center" size="lg" maw={580} mx="auto" mt="xl">
-            Error: {error}
-          </Text>
-        )}
-
-        {response && (
-          <Text c="dimmed" ta="center" size="lg" maw={580} mx="auto" mt="xl">
-            Answer: {response}
-          </Text>
-        )}
-      </div>
-
-      <Text c="dimmed" ta="center" size="sm" maw={580} mx="auto" mt="xl">
-        You have {remainingRequests} article summaries remaining.
-      </Text>
-    </>
+      {error && (
+        <Text c="red" size="sm">
+          Error: {error}
+        </Text>
+      )}
+    </Stack>
   );
 }
