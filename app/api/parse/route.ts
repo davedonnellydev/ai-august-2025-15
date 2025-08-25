@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Postlight parser returns the parsed article object or throws on error
-    const article = await Parser.parse(url);
+    const article = await Parser.parse(url, { contentType: 'markdown' });
 
     return NextResponse.json({ article });
   } catch (error) {
