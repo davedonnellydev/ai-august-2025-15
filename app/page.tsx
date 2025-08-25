@@ -1,9 +1,9 @@
-import { UrlParser } from '../components/UrlParser/UrlParser';
+import { ArticleParser } from '../components/ArticleParser/ArticleParser';
 
 export default function HomePage() {
   return (
     <>
-      <UrlParser />
+      <ArticleParser />
     </>
   );
 }

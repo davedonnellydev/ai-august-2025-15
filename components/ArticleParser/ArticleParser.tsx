@@ -25,7 +25,7 @@ const SummaryModeInstructions: Record<SummaryModes, string> = {
   faqs: 'Derive 5-8 likely reader questions and answer them with 1-2 sentences each. Answers must be supported by CONTENT. Output format: Markdown headings and paragraphs.',
 };
 
-export function UrlParser() {
+export function ArticleParser() {
   const [_input, setInput] = useState('');
   const [url, setUrl] = useState('');
   const [parsedWebsite, setParsedWebsite] = useState(null);
