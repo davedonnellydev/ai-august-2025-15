@@ -1,6 +1,12 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { ClientRateLimiter } from '@/app/lib/utils/api-helpers';
 
@@ -12,7 +18,9 @@ type AppStateContextValue = {
   refreshRemainingRequests: () => void;
 };
 
-const AppStateContext = createContext<AppStateContextValue | undefined>(undefined);
+const AppStateContext = createContext<AppStateContextValue | undefined>(
+  undefined
+);
 
 export function useAppState(): AppStateContextValue {
   const ctx = useContext(AppStateContext);
@@ -46,7 +54,9 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     } else {
       params.delete('url');
     }
-    router.push(`${pathname}${params.toString() ? `?${params.toString()}` : ''}`);
+    router.push(
+      `${pathname}${params.toString() ? `?${params.toString()}` : ''}`
+    );
   };
 
   const refreshRemainingRequests = () => {
@@ -54,11 +64,19 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   };
 
   const value = useMemo(
-    () => ({ currentUrl, setCurrentUrl, setUrlAndSync, remainingRequests, refreshRemainingRequests }),
+    () => ({
+      currentUrl,
+      setCurrentUrl,
+      setUrlAndSync,
+      remainingRequests,
+      refreshRemainingRequests,
+    }),
     [currentUrl, remainingRequests]
   );
 
-  return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>;
+  return (
+    <AppStateContext.Provider value={value}>
+      {children}
+    </AppStateContext.Provider>
+  );
 }
-
-

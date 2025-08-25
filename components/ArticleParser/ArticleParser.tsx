@@ -1,14 +1,26 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { Accordion, Button, Group, Paper, Select, Stack, Text, TextInput } from '@mantine/core';
+import {
+  Accordion,
+  Button,
+  Group,
+  Paper,
+  Select,
+  Stack,
+  Text,
+  TextInput,
+} from '@mantine/core';
 import { ClientRateLimiter } from '@/app/lib/utils/api-helpers';
 import { SummaryMode } from '@/app/lib/types';
 import { SummaryModeInstructions } from '@/app/lib/summary';
-import { findByUrl, sanitizeUrl, setArticleParsedData, setSummary } from '@/app/lib/storage/summaries';
+import {
+  findByUrl,
+  sanitizeUrl,
+  setArticleParsedData,
+  setSummary,
+} from '@/app/lib/storage/summaries';
 import { useAppState } from '@/app/context/AppStateContext';
-
- 
 
 export function ArticleParser() {
   const { setUrlAndSync, refreshRemainingRequests } = useAppState();
@@ -126,13 +138,18 @@ export function ArticleParser() {
   };
 
   return (
-    <Stack gap="md" style={{ maxWidth: 720, margin: '20px auto', padding: '20px' }}>
+    <Stack
+      gap="md"
+      style={{ maxWidth: 720, margin: '20px auto', padding: '20px' }}
+    >
       <Accordion defaultValue={undefined} variant="separated">
         <Accordion.Item value="instructions">
           <Accordion.Control>Instructions</Accordion.Control>
           <Accordion.Panel>
             <Text size="sm" c="dimmed">
-              Paste a webpage URL, choose a summary mode, and click Summarise. If the URL was summarised before, you'll be taken directly to the saved results.
+              Paste a webpage URL, choose a summary mode, and click Summarise.
+              If the URL was summarised before, you'll be taken directly to the
+              saved results.
             </Text>
           </Accordion.Panel>
         </Accordion.Item>
@@ -159,8 +176,9 @@ export function ArticleParser() {
         }}
         size="md"
         radius="md"
-        label="Enter a URL"
-        placeholder="https://en.wikipedia.org/wiki/Singin%27_in_the_Rain"
+        label="Enter the URL of a webpage you want to summarise"
+        aria-label="Enter the URL of a webpage you want to summarise"
+        placeholder="http://example-blog.com/article/123"
       />
 
       <Group align="flex-start" wrap="nowrap">
@@ -180,10 +198,11 @@ export function ArticleParser() {
             ]}
             size="md"
             radius="md"
+            aria-label="Select summary mode"
           />
         </div>
         <Paper p="sm" withBorder style={{ flex: 1 }}>
-          <Text size="sm" c="dimmed">
+          <Text size="sm" c="dimmed" role="note" aria-live="polite">
             {SummaryModeInstructions[summaryMode]}
           </Text>
         </Paper>
@@ -195,10 +214,16 @@ export function ArticleParser() {
           color="cyan"
           onClick={() => handleRequest()}
           loading={isLoading}
+          aria-label="Summarise webpage"
         >
           Summarise
         </Button>
-        <Button variant="light" color="cyan" onClick={() => handleReset()}>
+        <Button
+          variant="light"
+          color="cyan"
+          onClick={() => handleReset()}
+          aria-label="Reset form"
+        >
           Reset
         </Button>
       </Group>

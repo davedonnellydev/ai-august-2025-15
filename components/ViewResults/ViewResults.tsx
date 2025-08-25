@@ -12,11 +12,16 @@ import {
   Stack,
   Text,
   Title,
+  Tooltip,
 } from '@mantine/core';
 import ReactMarkdown from 'react-markdown';
 import { SummaryMode } from '@/app/lib/types';
 import { SUMMARY_MODES, SummaryModeInstructions } from '@/app/lib/summary';
-import { findByUrl, setArticleParsedData, setSummary } from '@/app/lib/storage/summaries';
+import {
+  findByUrl,
+  setArticleParsedData,
+  setSummary,
+} from '@/app/lib/storage/summaries';
 import { useAppState } from '@/app/context/AppStateContext';
 import { ClientRateLimiter } from '@/app/lib/utils/api-helpers';
 
@@ -39,13 +44,20 @@ export function ViewResults({ url }: { url: string }) {
     return s;
   }, [article?.summaries, tick]);
 
+  const lastUrlRef = React.useRef<string | null>(null);
   React.useEffect(() => {
-    // Default to a saved mode if available
-    if (savedModes.size > 0) {
-      const first = [...savedModes][0];
-      setSelectedMode(first);
+    // On URL change, set a sensible default without overriding later user choices
+    if (lastUrlRef.current !== currentUrl) {
+      lastUrlRef.current = currentUrl;
+      if (savedModes.size > 0) {
+        setSelectedMode((prev) =>
+          savedModes.has(prev) ? prev : [...savedModes][0]
+        );
+      } else {
+        setSelectedMode('tldr');
+      }
     }
-  }, [tick]);
+  }, [currentUrl, savedModes]);
 
   if (!article) {
     return (
@@ -64,7 +76,10 @@ export function ViewResults({ url }: { url: string }) {
       const response = await fetch('/api/openai/responses', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ input: article.content, summaryInstructions: instructions }),
+        body: JSON.stringify({
+          input: article.content,
+          summaryInstructions: instructions,
+        }),
       });
       if (!response.ok) {
         const errorData = await response.json();
@@ -115,7 +130,10 @@ export function ViewResults({ url }: { url: string }) {
         const resp = await fetch('/api/openai/responses', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ input: content, summaryInstructions: instructions }),
+          body: JSON.stringify({
+            input: content,
+            summaryInstructions: instructions,
+          }),
         });
         if (!resp.ok) {
           const errorData = await resp.json();
@@ -174,21 +192,18 @@ export function ViewResults({ url }: { url: string }) {
               label="Summary mode"
               placeholder="Select mode"
               value={selectedMode}
-              onChange={(value) => value && setSelectedMode(value as SummaryMode)}
+              onChange={(value) =>
+                value && setSelectedMode(value as SummaryMode)
+              }
               data={SUMMARY_MODES.map((m) => ({
                 value: m,
-                label: `${m === 'tldr' ? 'TL;DR' : m.replace('-', ' ')}` + (savedModes.has(m) ? ' ✓' : ''),
+                label:
+                  `${m === 'tldr' ? 'TL;DR' : m.replace('-', ' ')}` +
+                  (savedModes.has(m) ? ' ✓' : ''),
               }))}
             />
           </div>
-          <Group gap="xs">
-            <Button variant="light" color="gray" onClick={() => setUrlAndSync(null)}>
-              New URL
-            </Button>
-            <Button color="cyan" onClick={refreshSummaries} loading={loadingRefresh}>
-              Refresh summaries
-            </Button>
-          </Group>
+          {/* No actions on the right; refresh moved below the summary section */}
         </Group>
 
         <Text size="sm" c="dimmed" mb="sm">
@@ -208,14 +223,36 @@ export function ViewResults({ url }: { url: string }) {
             <Text c="dimmed" size="sm" mb="sm">
               No summary saved for this mode yet.
             </Text>
-            <Button onClick={generateForMode} loading={loadingGenerate}>
+            <Button
+              onClick={generateForMode}
+              loading={loadingGenerate}
+              aria-label="Generate summary for selected mode"
+            >
               Generate summary
             </Button>
           </>
         )}
       </Paper>
+
+      <Paper p="md" withBorder>
+        <Group justify="center">
+          <Tooltip
+            label="Refreshes & parses webpage data, then updates all existing summaries based on fresh content. Costs 1 summary token."
+            openDelay={300}
+            multiline
+            w={220}
+          >
+            <Button
+              color="red"
+              onClick={refreshSummaries}
+              loading={loadingRefresh}
+              aria-label="Refresh summaries"
+            >
+              Refresh summaries
+            </Button>
+          </Tooltip>
+        </Group>
+      </Paper>
     </Stack>
   );
 }
-
-

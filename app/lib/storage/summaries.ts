@@ -2,6 +2,20 @@ import { ModeSummary, StoredArticle, SummaryMode } from '../types';
 
 const STORAGE_KEY = 'summaries_v1';
 
+function hasStorage(): boolean {
+  return typeof window !== 'undefined' && typeof localStorage !== 'undefined';
+}
+
+function emitChange(): void {
+  if (typeof window !== 'undefined') {
+    try {
+      window.dispatchEvent(new CustomEvent('summaries:changed'));
+    } catch {
+      // noop
+    }
+  }
+}
+
 function safeParse<T>(value: string | null, fallback: T): T {
   if (!value) return fallback;
   try {
@@ -12,10 +26,13 @@ function safeParse<T>(value: string | null, fallback: T): T {
 }
 
 function saveAll(articles: StoredArticle[]): void {
+  if (!hasStorage()) return;
   localStorage.setItem(STORAGE_KEY, JSON.stringify(articles));
+  emitChange();
 }
 
 export function loadAll(): StoredArticle[] {
+  if (!hasStorage()) return [];
   return safeParse<StoredArticle[]>(localStorage.getItem(STORAGE_KEY), []);
 }
 
@@ -70,7 +87,12 @@ export function ensureArticle(url: string): StoredArticle {
 
 export function setArticleParsedData(
   url: string,
-  parsed: Partial<Pick<StoredArticle, 'title' | 'author' | 'domain' | 'lead_image_url' | 'content'>>
+  parsed: Partial<
+    Pick<
+      StoredArticle,
+      'title' | 'author' | 'domain' | 'lead_image_url' | 'content'
+    >
+  >
 ): StoredArticle {
   const normalized = sanitizeUrl(url);
   if (!normalized) throw new Error('Invalid URL');
@@ -99,7 +121,11 @@ export function setSummary(
   const summaries = { ...article.summaries };
   const summary: ModeSummary = { text, updatedAt: Date.now() };
   (summaries as any)[mode] = summary;
-  const updated: StoredArticle = { ...article, summaries, updatedAt: Date.now() };
+  const updated: StoredArticle = {
+    ...article,
+    summaries,
+    updatedAt: Date.now(),
+  };
   upsertArticle(updated);
   return updated;
 }
@@ -109,12 +135,25 @@ export function listSummarised(): Array<
 > {
   return loadAll()
     .filter((a) => Object.keys(a.summaries ?? {}).length > 0)
-    .map((a) => ({ url: a.url, title: a.title, domain: a.domain, updatedAt: a.updatedAt }))
+    .map((a) => ({
+      url: a.url,
+      title: a.title,
+      domain: a.domain,
+      updatedAt: a.updatedAt,
+    }))
     .sort((a, b) => b.updatedAt - a.updatedAt);
 }
 
 export function clearAll(): void {
+  if (!hasStorage()) return;
   localStorage.removeItem(STORAGE_KEY);
+  emitChange();
 }
 
-
+export function deleteByUrl(url: string): void {
+  if (!hasStorage()) return;
+  const normalized = sanitizeUrl(url);
+  if (!normalized) return;
+  const articles = loadAll().filter((a) => a.url !== normalized);
+  saveAll(articles);
+}
