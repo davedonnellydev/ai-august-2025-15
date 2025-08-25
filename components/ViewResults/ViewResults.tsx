@@ -2,7 +2,6 @@
 
 import React from 'react';
 import {
-  Badge,
   Box,
   Button,
   Group,
@@ -26,7 +25,7 @@ import { useAppState } from '@/app/context/AppStateContext';
 import { ClientRateLimiter } from '@/app/lib/utils/api-helpers';
 
 export function ViewResults({ url }: { url: string }) {
-  const { setUrlAndSync, refreshRemainingRequests } = useAppState();
+  const { refreshRemainingRequests } = useAppState();
   const [currentUrl] = React.useState<string>(url);
   const [loadingGenerate, setLoadingGenerate] = React.useState(false);
   const [loadingRefresh, setLoadingRefresh] = React.useState(false);
@@ -68,7 +67,9 @@ export function ViewResults({ url }: { url: string }) {
   }
 
   const generateForMode = async () => {
-    if (!article) return;
+    if (!article) {
+      return;
+    }
     setError('');
     setLoadingGenerate(true);
     try {
@@ -197,9 +198,9 @@ export function ViewResults({ url }: { url: string }) {
               }
               data={SUMMARY_MODES.map((m) => ({
                 value: m,
-                label:
-                  `${m === 'tldr' ? 'TL;DR' : m.replace('-', ' ')}` +
-                  (savedModes.has(m) ? ' ✓' : ''),
+                label: `${m === 'tldr' ? 'TL;DR' : m.replace('-', ' ')}${
+                  savedModes.has(m) ? ' ✓' : ''
+                }`,
               }))}
             />
           </div>
