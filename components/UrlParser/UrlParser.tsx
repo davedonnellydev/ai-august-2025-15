@@ -1,13 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Button, Text, TextInput, Title } from '@mantine/core';
+import { Button, Text, TextInput } from '@mantine/core';
 import { ClientRateLimiter } from '@/app/lib/utils/api-helpers';
-import classes from './UrlParser.module.css';
-// Removing server-only parser import from client component
 
 export function UrlParser() {
-  const [input, setInput] = useState('');
+  const [_input, setInput] = useState('');
+  const [url, setUrl] = useState('');
+  const [parsedWebsite, setParsedWebsite] = useState(null);
+  const [summaryMode, _setSummaryMode] = useState('tldr');
   const [response, setResponse] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -18,40 +19,42 @@ export function UrlParser() {
     setRemainingRequests(ClientRateLimiter.getRemainingRequests());
   }, []);
 
-  const parseUrl = async () => {
+  useEffect(() => {
+    console.log(parsedWebsite);
+  }, [parsedWebsite]);
+
+  const parseUrl = async (): Promise<string> => {
     try {
-        const res = await fetch('/api/parse', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              url: "https://en.wikipedia.org/wiki/Singin%27_in_the_Rain",
-            }),
-          });
+      const res = await fetch('/api/parse', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          url,
+        }),
+      });
 
-          if (!res.ok) {
-            const errorData = await res.json();
-            throw new Error(errorData.error || 'Parser failed');
-          }
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Parser failed');
+      }
 
-          const data = await res.json();
-          console.log(data);
-          const articleTitle: string = data.article?.title || 'Untitled';
-          const articleExcerpt: string = data.article?.excerpt || '';
-          setResponse(`${articleTitle} — ${articleExcerpt}`);
-
+      const { article } = await res.json();
+      setParsedWebsite(article);
+      const content: string = article?.content ?? '';
+      setInput(content);
+      return content;
     } catch (error) {
-        console.error('Parser error:', error);
+      console.error('Parser error:', error);
       setError(error instanceof Error ? error.message : 'Parser failed');
+      return '';
     }
-
-  }
-  
+  };
 
   const handleRequest = async () => {
-    if (!input.trim()) {
-      setError('Please enter some text to translate');
+    if (!url.trim()) {
+      setError('Please enter a url of an article to summarise.');
       return;
     }
 
@@ -65,6 +68,13 @@ export function UrlParser() {
     setIsLoading(true);
     setError('');
 
+    const parsedContent = await parseUrl();
+    if (!parsedContent || parsedContent.trim().length === 0) {
+      setIsLoading(false);
+      setError('No content could be extracted from the provided URL.');
+      return;
+    }
+
     try {
       const response = await fetch('/api/openai/responses', {
         method: 'POST',
@@ -72,7 +82,8 @@ export function UrlParser() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          input,
+          input: parsedContent,
+          summaryMode,
         }),
       });
 
@@ -97,6 +108,8 @@ export function UrlParser() {
 
   const handleReset = () => {
     setInput('');
+    setUrl('');
+    setParsedWebsite(null);
     setResponse('');
     setError('');
   };
@@ -105,18 +118,18 @@ export function UrlParser() {
     <>
       <div style={{ maxWidth: 600, margin: '20px auto', padding: '20px' }}>
         <TextInput
-          value={input}
-          onChange={(event) => setInput(event.currentTarget.value)}
+          value={url}
+          onChange={(event) => setUrl(event.currentTarget.value)}
           size="md"
           radius="md"
-          label="Enter a url"
+          label="Enter a URL"
           placeholder="https://en.wikipedia.org/wiki/Singin%27_in_the_Rain"
         />
 
         <Button
           variant="filled"
           color="cyan"
-          onClick={() => parseUrl()}
+          onClick={() => handleRequest()}
           loading={isLoading}
         >
           Summarise
@@ -139,7 +152,7 @@ export function UrlParser() {
       </div>
 
       <Text c="dimmed" ta="center" size="sm" maw={580} mx="auto" mt="xl">
-        You have {remainingRequests} questions remaining.
+        You have {remainingRequests} article summaries remaining.
       </Text>
     </>
   );
