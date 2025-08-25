@@ -6,19 +6,29 @@
 **🎯 Project Objective**: Paste a blog URL, get an AI-generated summary.  
 **🚀 Features**: Input blog URL; Fetch + extract content; AI-generated summary  
 **🛠️ Tech used**: Next.js, TypeScript, OpenAI API, [Postlight Parser](github.com/postlight/parser)  
-**▶️ Live Demo**: _[https://your-demo-url.com](https://your-demo-url.com)_  
-_(Link will be added after deployment)_
+**▶️ Live Demo**: [https://ai-august-2025-15.netlify.app/](https://ai-august-2025-15.netlify.app/)  
 
 ## 🗒️ Summary
 
-**Lessons learned**  
-_A little summary of learnings_
+This project was a **blog summariser**. It uses the Postlight Parser to fetch content from a URL (title, author, body, etc.), stores that data in `localStorage`, and then calls the OpenAI Responses API to produce different kinds of summaries for each webpage:  
+- **TL;DR short summary**  
+- **Plain English summary**  
+- **Key takeaways summary**  
+- **Structured outline**  
+- **Structured summary**  
+- **FAQs summary**  
 
-**Blockers**  
-_Note any blockers here_
+I feel like I’m starting to hit a good rhythm with these builds. One approach that worked particularly well was creating a **“project rule” document** inside Cursor — containing the full app shape, UX description, and user flow. I could then use this description as context when asking Cursor to break the build into stages. I even got Cursor to create its own “project rule” doc to store its breakdown of those stages, which made referencing them throughout the build seamless. The result: the app came together smoothly and quickly.  
+
+Another interesting part of this project was working with the Postlight Parser itself. It hasn’t been updated in years, and it relies on some deprecated dependencies that can’t be replaced. To be sure it wasn’t a dead end, I built a barebones prototype first to test its output. Once I confirmed it still worked and understood the data it returned, I was able to design the app around those discoveries more confidently.  
+
+**Lessons learned**  
+- Documenting project rules and flows upfront helps AI tools guide development more effectively.  
+- Old dependencies aren’t always dealbreakers — but always test them in isolation before committing to building around them.  
+- Structuring AI prompts and context deliberately makes collaboration with tools like Cursor much more productive.  
 
 **Final thoughts**  
-_Any final thoughts here_
+This project was both practical and smooth. It reinforced the importance of planning and documentation — not just for myself, but for the AI tools helping me build.  
 
 This project has been built as part of my AI August App-A-Day Challenge. You can read more information on the full project here: [https://github.com/davedonnellydev/ai-august-2025-challenge](https://github.com/davedonnellydev/ai-august-2025-challenge).
 
